@@ -1,11 +1,16 @@
 package fr.sandrock59.teleinfo.process;
 
+import java.util.HashMap;
+
 import fr.sandrock59.teleinfo.outils.LogManager;
+import fr.sandrock59.teleinfo.outils.TeleinfoConnectionFakeManager;
+import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManager;
+import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManagerGenerique;
 
 public class CollecteTeleinfoThread extends Thread 
 {
-	long periodeSeconde = 5; 
-	
+	private long periodeSeconde = 5; 
+	private boolean isModeTest = false;
 	
 	public void run() 
 	{
@@ -26,9 +31,22 @@ public class CollecteTeleinfoThread extends Thread
 		}
 	}
 
-	private void setPeriodeSeconde(long periode)
+	public void setPeriodeSeconde(long periode)
 	{
 		this.periodeSeconde = periode;
+	}
+	
+	public void setIsModeTest(boolean isTest)
+	{
+		if(isTest)
+		{
+			LogManager.log("###############");
+			LogManager.log("## Mode TEST ##");
+			LogManager.log("###############");
+		}
+		
+		
+		this.isModeTest = isTest;
 	}
 	
 	
@@ -36,7 +54,26 @@ public class CollecteTeleinfoThread extends Thread
 	{
 		
 		
-		LogManager.log("On Collecte");
+		LogManager.log("Collecte des inforamtions");
+		
+		TeleinfoConnectionManagerGenerique teleinfoConnection = null;
+		
+		if(this.isModeTest)
+		{
+			teleinfoConnection = TeleinfoConnectionFakeManager.getInstance();
+		}
+		else
+		{
+			teleinfoConnection = TeleinfoConnectionManager.getInstance();
+		}
+		
+		HashMap<String, String> listeInfos = teleinfoConnection.lectureTeleInfo();
+		
+		if(listeInfos !=null)
+		{
+			teleinfoConnection.afficherInfosEdf(listeInfos);	
+		}
+		
 		
 		
 	}
