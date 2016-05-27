@@ -6,6 +6,7 @@ import fr.sandrock59.teleinfo.outils.LogManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionFakeManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManagerGenerique;
+import fr.sandrock59.teleinfo.persistance.ConnectionManager;
 
 public class CollecteTeleinfoThread extends Thread 
 {
@@ -71,7 +72,12 @@ public class CollecteTeleinfoThread extends Thread
 		
 		if(listeInfos !=null)
 		{
-			teleinfoConnection.afficherInfosEdf(listeInfos);	
+			//Affichage des données EDF brut
+			teleinfoConnection.afficherInfosEdf(listeInfos);
+			
+			//On va stocker les inforamtions en BDD
+			ConnectionManager.getInstance().enregistrementDonneesPuissance(listeInfos);
+			
 		}
 		
 		
