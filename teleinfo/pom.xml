@@ -11,8 +11,28 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<compileSource>1.7</compileSource>
 	</properties>
+	<profiles>
+    	<profile>
+      		<id>raspberry</id>
+      		<build>
+        		<filters>
+          			<filter>src/main/filters/filter-raspberry.properties</filter>
+        		</filters>
+      		</build>
+    	</profile>
+    	<profile>
+      		<id>test</id>
+      		<build>
+        		<filters>
+          			<filter>src/main/filters/filter-test.properties</filter>
+        		</filters>
+      		</build>
+    	</profile>
+	</profiles>
+	
 	<build>
 		<sourceDirectory>src</sourceDirectory>
+		<outputDirectory>..\target\classes</outputDirectory>
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -23,6 +43,20 @@
 				</configuration>
 			</plugin>
 		</plugins>
+<!-- 		<filters> -->
+<!--       		<filter>src/main/filters/filter-test.properties</filter> -->
+<!--     	</filters> -->
+		<resources>
+			<resource>
+				<directory>src/main/ressources</directory>
+				<filtering>true</filtering>
+			</resource>
+<!-- 			<resource> -->
+<!--         		<targetPath>../ressources</targetPath> -->
+<!--         		<filtering>true</filtering> -->
+<!--         		<directory>src/main/ressources</directory> -->
+<!--       		</resource> -->
+		</resources>
 	</build>
 	<dependencies>
 		<dependency>
@@ -50,10 +84,11 @@
   			<artifactId>commons-configuration</artifactId>
   			<version>1.6</version>
 		</dependency>
-		<dependency>
-    		<groupId>jfreechart</groupId>
-    		<artifactId>jfreechart</artifactId>
-    		<version>1.0.0</version>
-		</dependency>
+<!-- 		<dependency> -->
+<!--     		<groupId>jfreechart</groupId> -->
+<!--     		<artifactId>jfreechart</artifactId> -->
+<!--     		<version>1.0.0</version> -->
+<!-- 		</dependency> -->
 	</dependencies>
+	
 </project>
