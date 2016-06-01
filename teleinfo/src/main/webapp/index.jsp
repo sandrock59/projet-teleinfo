@@ -37,9 +37,21 @@
 		
 		//Option de refresh
 		String optionRaffraichir[] = request.getParameterValues( "raffraichir" );
-		if(optionRaffraichir == null)
+		String optionPasRaffraichir = request.getParameter( "pasRaffraichir" );
+		if(optionRaffraichir == null && optionPasRaffraichir == null)
 		{
 			optionRaffraichir = (String[])session.getAttribute("optionRaffraichir");
+			if(optionRaffraichir == null)
+			{
+				optionPasRaffraichir="No";
+			}
+		}
+		else
+		{
+			if(optionRaffraichir != null)
+			{
+				 optionPasRaffraichir="";
+			}
 		}
 		String checkedRaffraichir = "";
 		String cmdRaffraichir = "<meta http-equiv='refresh' content='60'>";
@@ -87,6 +99,7 @@
 						</select>
 						<br/>
 						Raffraichir :<input type="checkbox" name="raffraichir" value="raffraichir" onchange="submit()" <%=checkedRaffraichir%>>
+						<input id='pasRaffraichir' type='hidden' value='No' name='pasRaffraichir'>
 					</form>
 				</td>
 				<td width="10%"></td>
