@@ -1,24 +1,47 @@
 package fr.sandrock59.teleinfo.process;
 
-import java.util.Enumeration;
+import java.text.ParseException;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 
+import fr.sandrock59.teleinfo.beans.InfosConso;
 import fr.sandrock59.teleinfo.outils.LogManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionFakeManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManagerGenerique;
 import fr.sandrock59.teleinfo.persistance.ConnectionManager;
-import gnu.io.CommPortIdentifier;
 
 public class CollecteTeleinfoThread extends Thread 
 {
 	private long periodeSeconde = 5; 
 	private boolean isModeTest = false;
+	private Date derniereDateConsoRelevee = null;
+	private Date dateLimiteReleveeConso = null;
+	
 	
 	public void run() 
 	{
 		while(true)
 		{
+			//Initilisation de la date de dernier relevé
+			InfosConso infosConso = ConnectionManager.getInstance().getDerniereConso();
+			if(infosConso != null && infosConso.getDate() != null)
+			{
+				derniereDateConsoRelevee = infosConso.getDate();
+				
+				Calendar cal = Calendar.getInstance();
+				cal.setTime(derniereDateConsoRelevee);
+				cal.add(Calendar.DATE, 2);
+				
+				dateLimiteReleveeConso = cal.getTime(); 
+			}
+			else
+			{
+				dateLimiteReleveeConso = new Date();
+			}
+			 
+			
 			//Lancement du traitement
 			this.processus();
 			
@@ -76,10 +99,26 @@ public class CollecteTeleinfoThread extends Thread
 		if(listeInfos !=null)
 		{
 			//Affichage des données EDF brut
-			teleinfoConnection.afficherInfosEdf(listeInfos);
+			TeleinfoConnectionManagerGenerique.afficherInfosEdf(listeInfos);
 			
-			//On va stocker les inforamtions en BDD
+			//On va stocker les inforamtions en BDD pour le graph de puissance
 			ConnectionManager.getInstance().enregistrementDonneesPuissance(listeInfos);
+			
+			//On regarde si on doit relever les infos pour le suivi de consomation
+			try {
+				Date dateInfosEdf = teleinfoConnection.formatDateLecture.parse(listeInfos.get("DATE"));
+				
+	
+				if(derniereDateConsoRelevee == null || dateLimiteReleveeConso.before(dateInfosEdf))
+				{
+					//Stockage des données en base
+					ConnectionManager.getInstance().enregistrementDonneesConsomation(listeInfos);
+				}
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 			
 		}
 		

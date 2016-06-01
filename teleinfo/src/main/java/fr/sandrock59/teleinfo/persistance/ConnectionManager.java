@@ -1,6 +1,8 @@
 package fr.sandrock59.teleinfo.persistance;
 
 import java.sql.*;
+import java.text.ParseException;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -9,9 +11,16 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 
 
 
+
+
+
+
+
 import com.mysql.jdbc.PreparedStatement;
 
+import fr.sandrock59.teleinfo.beans.InfosConso;
 import fr.sandrock59.teleinfo.outils.LogManager;
+import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManagerGenerique;
 
 public class ConnectionManager {
 	private static ConnectionManager singleInstance;
@@ -61,8 +70,8 @@ public class ConnectionManager {
 		try {
 			Statement stmt = conn.createStatement();
 
-			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Consommation (timestamp DATETIME, total_hc INTEGER, total_hp INTEGER, daily_hc BIGINT, daily_hp BIGINT);");
-			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Puissance (timestamp DATETIME, hchp VARCHAR(2), va BIGINT, iinst BIGINT, watt BIGINT);");
+			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Consommation (date DATE, total_hc INTEGER, total_hp INTEGER, daily_hc BIGINT, daily_hp BIGINT);");
+			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Puissance (date DATETIME, hchp VARCHAR(2), va BIGINT, iinst BIGINT, watt BIGINT);");
 
 		} catch (SQLException ex) {
 			// handle any errors
@@ -77,7 +86,7 @@ public class ConnectionManager {
 	{
 		try {
 		     // the mysql insert statement
-	      String query = " INSERT INTO TI_Puissance (timestamp, hchp, va, iinst, watt) VALUES (?, ?, ?, ?, ?)";
+	      String query = " INSERT INTO TI_Puissance (date, hchp, va, iinst, watt) VALUES (?, ?, ?, ?, ?)";
 	 
 	      // create the mysql insert preparedstatement
 	      PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
@@ -101,55 +110,104 @@ public class ConnectionManager {
 	
 	public void enregistrementDonneesConsomation(HashMap<String, String> listeInfos)
 	{
-	    
-	    
-		
-//		$datas = array();
-//	    $datas['query']     = 'hchp';
-//	    $datas['timestamp'] = $today;
-//	    $datas['total_hc']  = preg_replace('`^[0]*`','',$trame['HCHC']); // conso total en Wh heure creuse, on supprime les 0 en debut de chaine
-//	    $datas['total_hp']  = preg_replace('`^[0]*`','',$trame['HCHP']); // conso total en Wh heure pleine, on supprime les 0 en debut de chaine
-//
-//	    if($previous['total_hc'] == 0){
-//	      $datas['daily_hc'] = 0;
-//	    }
-//	    else{
-//	      $datas['daily_hc']  = ($datas['total_hc']-$previous['total_hc'])/1000; // conso du jour heure creuse = total aujourd'hui - total hier, on divise par 1000 pour avec un resultat en kWh
-//	    }
-//
-//	    if($previous['total_hp'] == 0){
-//	      $datas['daily_hp'] = 0;
-//	    }
-//	    else{
-//	      $datas['daily_hp']  = ($datas['total_hp']-$previous['total_hp'])/1000; // conso du jour heure pleine = total aujourd'hui - total hier, on divise par 1000 pour avec un resultat en kWh
-//	    }
-//
-//	    if($db->busyTimeout(5000)){ // stock les donnees
-//	      $db->exec("INSERT INTO conso (timestamp, total_hc, total_hp, daily_hc, daily_hp) VALUES (".$datas['timestamp'].", ".$datas['total_hc'].", ".$datas['total_hp'].", ".$datas['daily_hc'].", ".$datas['daily_hp'].");");
-//	    }
-		
-	    
+	    InfosConso derniereInfosConso = this.getDerniereConso();
+	    Date dateInfosEdf = null;
+	    listeInfos.get("DATE");
 	    try {
-			     // the mysql insert statement
-		      String query = " INSERT INTO TI_Consommation (timestamp, total_hc, total_hp, daily_hc, daily_hp) VALUES (?, ?, ?, ?, ?)";
-		 
-		      // create the mysql insert preparedstatement
-		      PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
-		      preparedStmt.setDate(1, new java.sql.Date(new Date().getTime()));
-		      preparedStmt.setInt(2, new Integer(listeInfos.get("HCHC")));
-		      preparedStmt.setInt(3, new Integer(listeInfos.get("HCHP")));
-//		      preparedStmt.setLong(4, );
-//		      preparedStmt.setLong(5, );
-		 
-		      // execute the preparedstatement
-		      preparedStmt.execute();
-
-		} catch (SQLException ex) {
-			// handle any errors
-			System.out.println("SQLException: " + ex.getMessage());
-			System.out.println("SQLState: " + ex.getSQLState());
-			System.out.println("VendorError: " + ex.getErrorCode());
+			dateInfosEdf = TeleinfoConnectionManagerGenerique.formatDateLecture.parse(listeInfos.get("DATE"));
+		} catch (ParseException e) {
+			e.printStackTrace();
+			//Au pire on prend la date actuelle
+			dateInfosEdf = new Date();
 		}
+	    
+	    //On considère la date relevée comme étant le bilan de la veille
+	    Calendar cal = Calendar.getInstance();
+		cal.setTime(dateInfosEdf);
+		cal.add(Calendar.DATE, -1);
+		Date dateVeille = cal.getTime(); 
+	    
+	    java.sql.Date dateNouveauReleve = new java.sql.Date(dateVeille.getTime());
+	    
+	    //Si pas encore de relevé on en créé un premier
+	    if(derniereInfosConso == null)
+	    {
+			try {
+				String query = " INSERT INTO TI_Consommation (date, total_hc, total_hp, daily_hc, daily_hp) VALUES (?, ?, ?, ?, ?)";
+
+				PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+				preparedStmt.setDate(1, dateNouveauReleve);
+				preparedStmt.setInt(2, new Integer(listeInfos.get("HCHC")));
+				preparedStmt.setInt(3, new Integer(listeInfos.get("HCHP")));
+				preparedStmt.setLong(4, 0);
+				preparedStmt.setLong(5, 0);
+
+				// execute the preparedstatement
+				preparedStmt.execute();
+
+			} catch (SQLException ex) {
+				// handle any errors
+				System.out.println("SQLException: " + ex.getMessage());
+				System.out.println("SQLState: " + ex.getSQLState());
+				System.out.println("VendorError: " + ex.getErrorCode());
+			}
+	    }
+	    else
+	    {
+	    	//on a déjà un relevé
+	    	try {
+				String query = " INSERT INTO TI_Consommation (date, total_hc, total_hp, daily_hc, daily_hp) VALUES (?, ?, ?, ?, ?)";
+
+				PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+				preparedStmt.setDate(1, dateNouveauReleve);
+				preparedStmt.setInt(2, new Integer(listeInfos.get("HCHC")));
+				preparedStmt.setInt(3, new Integer(listeInfos.get("HCHP")));
+				preparedStmt.setLong(4, (new Integer(listeInfos.get("HCHC")) - derniereInfosConso.getTotal_hc()) );
+				preparedStmt.setLong(5, (new Integer(listeInfos.get("HCHP")) - derniereInfosConso.getTotal_hp()));
+
+				// execute the preparedstatement
+				preparedStmt.execute();
+
+			} catch (SQLException ex) {
+				// handle any errors
+				System.out.println("SQLException: " + ex.getMessage());
+				System.out.println("SQLState: " + ex.getSQLState());
+				System.out.println("VendorError: " + ex.getErrorCode());
+			}
+	    	
+	    }
+	    
+	    
+	}
+	
+	
+	public InfosConso getDerniereConso()
+	{
+		InfosConso infosConso = null;
+		
+		Statement stmt;
+		try {
+			stmt = conn.createStatement();
+			String sql = "SELECT date, total_hc, total_hp, daily_hc, daily_hp FROM TI_Consommation order by date desc limit 1";
+		      
+			ResultSet rs = stmt.executeQuery(sql);
+
+			while(rs.next())
+			{
+				infosConso = new InfosConso();
+				infosConso.setDate(rs.getDate("date"));
+				infosConso.setTotal_hc(rs.getInt("total_hc"));
+				infosConso.setTotal_hp(rs.getInt("total_hp"));
+				infosConso.setDaily_hc(rs.getLong("daily_hc"));
+				infosConso.setDaily_hp(rs.getLong("daily_hp"));
+			}
+			rs.close();
+		} 
+		catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return infosConso;
 	}
 	
 }

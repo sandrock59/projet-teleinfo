@@ -7,7 +7,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 
 public class TeleinfoConnectionManagerGenerique {
 
-	public SimpleDateFormat formatDateLecture = new SimpleDateFormat("YYYY/MM/DD HH:mm:ss");
+	public static SimpleDateFormat formatDateLecture = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 	protected PropertiesConfiguration conf;
 	protected String nomPort = null;
 
