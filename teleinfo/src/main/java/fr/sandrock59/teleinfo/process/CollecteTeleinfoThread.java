@@ -1,5 +1,6 @@
 package fr.sandrock59.teleinfo.process;
 
+import java.util.Enumeration;
 import java.util.HashMap;
 
 import fr.sandrock59.teleinfo.outils.LogManager;
@@ -7,6 +8,7 @@ import fr.sandrock59.teleinfo.outils.TeleinfoConnectionFakeManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManager;
 import fr.sandrock59.teleinfo.outils.TeleinfoConnectionManagerGenerique;
 import fr.sandrock59.teleinfo.persistance.ConnectionManager;
+import gnu.io.CommPortIdentifier;
 
 public class CollecteTeleinfoThread extends Thread 
 {
@@ -56,6 +58,7 @@ public class CollecteTeleinfoThread extends Thread
 		
 		
 		LogManager.log("Collecte des inforamtions");
+			
 		
 		TeleinfoConnectionManagerGenerique teleinfoConnection = null;
 		

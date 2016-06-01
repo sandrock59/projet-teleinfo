@@ -46,6 +46,8 @@ public class TeleinfoConnectionManager extends TeleinfoConnectionManagerGeneriqu
 		try
 		{
 			CommPortIdentifier port = null;
+
+			LogManager.log("Ouverture du port :"+conf.getString("TELEINFO_PORT"));
 			port = CommPortIdentifier.getPortIdentifier(conf.getString("TELEINFO_PORT"));
 			
 			if (port != null)

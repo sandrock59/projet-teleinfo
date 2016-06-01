@@ -10,4 +10,14 @@
 		<servlet-class>fr.sandrock59.teleinfo.servlet.ServiceTeleinfoServlet</servlet-class>
 		<load-on-startup>1</load-on-startup>
 	</servlet>
+	
+	
+	<servlet> 
+		<servlet-name>ChartViewer</servlet-name> 
+		<servlet-class>ChartViewer</servlet-class> 
+	</servlet> 
+	<servlet-mapping> 
+		<servlet-name>ChartViewer</servlet-name> 
+		<url-pattern>/chartviewer</url-pattern> 
+	</servlet-mapping> 
 </web-app>
