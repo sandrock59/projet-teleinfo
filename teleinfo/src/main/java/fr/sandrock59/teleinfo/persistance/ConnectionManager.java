@@ -1,12 +1,16 @@
 package fr.sandrock59.teleinfo.persistance;
 
 import java.sql.*;
+import java.text.DateFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
+
+
 
 
 
@@ -208,6 +212,166 @@ public class ConnectionManager {
 			e.printStackTrace();
 		}
 		return infosConso;
+	}
+
+	
+	public String getDonneesPuissance(int nbJour)
+	{
+		SimpleDateFormat simpleDateFormatGoogle = new SimpleDateFormat("yyyy, MM, dd, HH, mm, ss");
+		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+
+		String donneesPuissance = "[";
+		
+		try {
+			//On considère la date relevée comme étant le bilan de la veille
+		    Calendar cal = Calendar.getInstance();
+			cal.setTime(new Date());
+			cal.add(Calendar.DATE, nbJour * -1);
+			Date dateDebut = cal.getTime(); 
+			
+			
+			String query = "SELECT date, hchp, va, iinst, watt FROM TI_Puissance WHERE date > ? ORDER BY date ASC;";
+
+			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+			preparedStmt.setDate(1, new java.sql.Date(dateDebut.getTime()));
+			preparedStmt.execute();
+			ResultSet rs = preparedStmt.executeQuery();
+
+			while(rs.next())
+			{
+				
+				if(donneesPuissance.length() > 1)
+				{
+					//On ajout une virgule car encore des données à ajouter)
+					donneesPuissance = donneesPuissance + ",";
+				}
+				
+				Date dateData = rs.getTimestamp("date");
+				long va =  rs.getLong("va");
+				long watt = rs.getLong("watt");
+				
+				String donnesUnitaire = "[{v:new Date("+simpleDateFormatGoogle.format(dateData)+"), f:'"+simpleDateFormatTexteGoogle.format(dateData)+"'}, {v:"+va+", f:'"+va+" V.A'},{v:"+watt+", f:'"+watt+" W'}]";
+				
+				donneesPuissance = donneesPuissance + donnesUnitaire;
+				
+			}
+			rs.close();
+		} 
+		catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		donneesPuissance = donneesPuissance + "]";
+		return donneesPuissance;
+	}
+	
+	public String getDonneesConsommation(int nbJour)
+	{
+		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateInstance(DateFormat.MEDIUM);
+
+		String donneesConsomation = "[";
+		
+		try {
+			//On considère la date relevée comme étant le bilan de la veille
+		    Calendar cal = Calendar.getInstance();
+			cal.setTime(new Date());
+			cal.add(Calendar.DATE, nbJour * -1);
+			Date dateDebut = cal.getTime(); 
+			
+			
+			String query = "SELECT date, total_hc, total_hp, daily_hc, daily_hp FROM TI_Consommation WHERE date > ? ORDER BY date ASC;";
+
+			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+			preparedStmt.setDate(1, new java.sql.Date(dateDebut.getTime()));
+			preparedStmt.execute();
+			ResultSet rs = preparedStmt.executeQuery();
+
+			while(rs.next())
+			{
+				
+				if(donneesConsomation.length() > 1)
+				{
+					//On ajout une virgule car encore des données à ajouter)
+					donneesConsomation = donneesConsomation + ",";
+				}
+				
+				Date dateData = rs.getTimestamp("date");
+				long daily_hc =  rs.getLong("daily_hc")/1000;
+				long daily_hp = rs.getLong("daily_hp")/1000;
+				
+				
+				String donnesUnitaire = "['"+simpleDateFormatTexteGoogle.format(dateData)+"', {v:"+daily_hp+",f:'"+daily_hp+" kWh'}, {v:"+daily_hc+",f:'"+daily_hc+" kWh'}]";
+				
+				donneesConsomation = donneesConsomation + donnesUnitaire;
+				
+			}
+			rs.close();
+		} 
+		catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		donneesConsomation = donneesConsomation + "]";
+		return donneesConsomation;
+	}
+	 
+	public String getDonneesConsommationPrix(int nbJour)
+	{
+		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateInstance(DateFormat.MEDIUM);
+
+		String donneesConsomation = "[";
+		
+		try {
+			//On considère la date relevée comme étant le bilan de la veille
+		    Calendar cal = Calendar.getInstance();
+			cal.setTime(new Date());
+			cal.add(Calendar.DATE, nbJour * -1);
+			Date dateDebut = cal.getTime(); 
+			
+			
+			String query = "SELECT date, total_hc, total_hp, daily_hc, daily_hp FROM TI_Consommation WHERE date > ? ORDER BY date ASC;";
+
+			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+			preparedStmt.setDate(1, new java.sql.Date(dateDebut.getTime()));
+			preparedStmt.execute();
+			ResultSet rs = preparedStmt.executeQuery();
+
+			while(rs.next())
+			{
+				
+				if(donneesConsomation.length() > 1)
+				{
+					//On ajout une virgule car encore des données à ajouter)
+					donneesConsomation = donneesConsomation + ",";
+				}
+				
+				Date dateData = rs.getTimestamp("date");
+				double daily_hc =  rs.getLong("daily_hc")*0.115;
+				double daily_hp = rs.getLong("daily_hp")*0.1636;
+				
+				
+				String donnesUnitaire = "['"+simpleDateFormatTexteGoogle.format(dateData)+"', {v:"+daily_hp+",f:'"+daily_hp+" Euros'}, {v:"+daily_hc+",f:'"+daily_hc+" Euros'}]";
+				
+				donneesConsomation = donneesConsomation + donnesUnitaire;
+				
+			}
+			rs.close();
+		} 
+		catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		donneesConsomation = donneesConsomation + "]";
+		return donneesConsomation;
 	}
 	
 }
