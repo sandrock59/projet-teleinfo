@@ -1,14 +1,20 @@
 package fr.sandrock59.teleinfo.persistance;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.text.DateFormat;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
+
+
+
 
 
 
@@ -299,8 +305,8 @@ public class ConnectionManager {
 				}
 				
 				Date dateData = rs.getTimestamp("date");
-				long daily_hc =  rs.getLong("daily_hc")/1000;
-				long daily_hp = rs.getLong("daily_hp")/1000;
+				double daily_hc =  new Double(rs.getLong("daily_hc"))/1000.0;
+				double daily_hp = new Double(rs.getLong("daily_hp"))/1000.0;
 				
 				
 				String donnesUnitaire = "['"+simpleDateFormatTexteGoogle.format(dateData)+"', {v:"+daily_hp+",f:'"+daily_hp+" kWh'}, {v:"+daily_hc+",f:'"+daily_hc+" kWh'}]";
@@ -352,11 +358,14 @@ public class ConnectionManager {
 				}
 				
 				Date dateData = rs.getTimestamp("date");
-				double daily_hc =  rs.getLong("daily_hc")*0.115;
-				double daily_hp = rs.getLong("daily_hp")*0.1636;
+				BigDecimal daily_hc =  (new BigDecimal(rs.getLong("daily_hc")).divide(new BigDecimal("1000"))).multiply(new BigDecimal("0.115"));
+				BigDecimal daily_hp =  (new BigDecimal(rs.getLong("daily_hp")).divide(new BigDecimal("1000"))).multiply(new BigDecimal("0.1636"));
+
+				NumberFormat n = NumberFormat.getCurrencyInstance(Locale.FRANCE);
+				String shc = n.format(daily_hc);
+				String shp = n.format(daily_hp);
 				
-				
-				String donnesUnitaire = "['"+simpleDateFormatTexteGoogle.format(dateData)+"', {v:"+daily_hp+",f:'"+daily_hp+" Euros'}, {v:"+daily_hc+",f:'"+daily_hc+" Euros'}]";
+				String donnesUnitaire = "['"+simpleDateFormatTexteGoogle.format(dateData)+"', {v:"+daily_hp+",f:'"+shp+"'}, {v:"+daily_hc+",f:'"+shc+"'}]";
 				
 				donneesConsomation = donneesConsomation + donnesUnitaire;
 				
