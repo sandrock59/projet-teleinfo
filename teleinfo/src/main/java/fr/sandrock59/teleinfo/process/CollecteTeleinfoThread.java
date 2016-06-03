@@ -79,49 +79,57 @@ public class CollecteTeleinfoThread extends Thread
 	private void processus()
 	{
 		
-		
-		LogManager.log("Collecte des inforamtions");
+		try
+		{
 			
 		
-		TeleinfoConnectionManagerGenerique teleinfoConnection = null;
-		
-		if(this.isModeTest)
-		{
-			teleinfoConnection = TeleinfoConnectionFakeManager.getInstance();
-		}
-		else
-		{
-			teleinfoConnection = TeleinfoConnectionManager.getInstance();
-		}
-		
-		HashMap<String, String> listeInfos = teleinfoConnection.lectureTeleInfo();
-		
-		if(listeInfos !=null)
-		{
-			//Affichage des données EDF brut
-			TeleinfoConnectionManagerGenerique.afficherInfosEdf(listeInfos);
-			
-			//On va stocker les inforamtions en BDD pour le graph de puissance
-			ConnectionManager.getInstance().enregistrementDonneesPuissance(listeInfos);
-			
-			//On regarde si on doit relever les infos pour le suivi de consomation
-			try {
-				Date dateInfosEdf = teleinfoConnection.formatDateLecture.parse(listeInfos.get("DATE"));
+			LogManager.log("Collecte des inforamtions");
 				
-	
-				if(derniereDateConsoRelevee == null || dateLimiteReleveeConso.before(dateInfosEdf))
-				{
-					//Stockage des données en base
-					ConnectionManager.getInstance().enregistrementDonneesConsomation(listeInfos);
-				}
-			} catch (ParseException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			
+			TeleinfoConnectionManagerGenerique teleinfoConnection = null;
+			
+			if(this.isModeTest)
+			{
+				teleinfoConnection = TeleinfoConnectionFakeManager.getInstance();
+			}
+			else
+			{
+				teleinfoConnection = TeleinfoConnectionManager.getInstance();
 			}
 			
+			HashMap<String, String> listeInfos = teleinfoConnection.lectureTeleInfo();
 			
-		}
+			if(listeInfos !=null)
+			{
+				//Affichage des données EDF brut
+				TeleinfoConnectionManagerGenerique.afficherInfosEdf(listeInfos);
+				
+				//On va stocker les inforamtions en BDD pour le graph de puissance
+				ConnectionManager.getInstance().enregistrementDonneesPuissance(listeInfos);
+				
+				//On regarde si on doit relever les infos pour le suivi de consomation
+				try {
+					Date dateInfosEdf = teleinfoConnection.formatDateLecture.parse(listeInfos.get("DATE"));
+					
 		
+					if(derniereDateConsoRelevee == null || dateLimiteReleveeConso.before(dateInfosEdf))
+					{
+						//Stockage des données en base
+						ConnectionManager.getInstance().enregistrementDonneesConsomation(listeInfos);
+					}
+				} catch (ParseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				
+			}
+		}
+		catch(Exception e)
+		{
+			LogManager.log("[ALERT] Erreur au cours du traitement periodique de collecte des informtaions");
+			e.printStackTrace();
+		}
 		
 		
 	}
