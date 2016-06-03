@@ -10,8 +10,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.TreeMap;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
+
 
 
 
@@ -80,8 +82,8 @@ public class ConnectionManager {
 		try {
 			Statement stmt = conn.createStatement();
 
-			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Consommation (date DATE, total_hc INTEGER, total_hp INTEGER, daily_hc BIGINT, daily_hp BIGINT);");
-			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Puissance (date DATETIME, hchp VARCHAR(2), va BIGINT, iinst BIGINT, watt BIGINT);");
+			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Consommation (date datetime NOT NULL,total_hc int(11) DEFAULT NULL,total_hp int(11) DEFAULT NULL,daily_hc bigint(20) DEFAULT NULL,daily_hp bigint(20) DEFAULT NULL, PRIMARY KEY (`date`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
+			stmt.executeUpdate("CREATE TABLE IF NOT EXISTS TI_Puissance (date datetime NOT NULL,hchp varchar(2) DEFAULT NULL,va bigint(20) DEFAULT NULL,iinst bigint(20) DEFAULT NULL,watt bigint(20) DEFAULT NULL, PRIMARY KEY (`date`)) ENGINE=InnoDB DEFAULT CHARSET=utf8;");
 
 		} catch (SQLException ex) {
 			// handle any errors
@@ -221,12 +223,67 @@ public class ConnectionManager {
 	}
 
 	
+	public String getDonneesPuissanceJour(String jour)
+	{
+		SimpleDateFormat simpleDateFormatGoogle = new SimpleDateFormat("yyyy, MM, dd, HH, mm, ss");
+		SimpleDateFormat simpleDateFormatLecture = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		
+		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+
+		String donneesPuissance = "";
+		
+		try {
+			Date dateDebut = simpleDateFormatLecture.parse(jour + " 00:00:00");
+			
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(new Date());
+			cal.add(Calendar.DATE, 1);
+			Date dateFin = cal.getTime(); 
+			
+			
+			String query = "SELECT date, hchp, va, iinst, watt FROM TI_Puissance WHERE date >= ? AND date < ? ORDER BY date ASC;";
+
+			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+			preparedStmt.setDate(1, new java.sql.Date(dateDebut.getTime()));
+			preparedStmt.setDate(2, new java.sql.Date(dateFin.getTime()));
+			preparedStmt.execute();
+			ResultSet rs = preparedStmt.executeQuery();
+
+			while(rs.next())
+			{
+				
+				if(donneesPuissance.length() > 1)
+				{
+					//On ajout une virgule car encore des données à ajouter)
+					donneesPuissance = donneesPuissance + ",";
+				}
+				
+				Date dateData = rs.getTimestamp("date");
+				long va =  rs.getLong("va");
+				long watt = rs.getLong("watt");
+				
+				String donnesUnitaire = "[{v:new Date("+simpleDateFormatGoogle.format(dateData)+"), f:'"+simpleDateFormatTexteGoogle.format(dateData)+"'}, {v:"+va+", f:'"+va+" V.A'},{v:"+watt+", f:'"+watt+" W'}]";
+				
+				donneesPuissance = donneesPuissance + donnesUnitaire;
+				
+			}
+			rs.close();
+		} 
+		catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return donneesPuissance;
+	}
+	
+	
 	public String getDonneesPuissance(int nbJour)
 	{
 		SimpleDateFormat simpleDateFormatGoogle = new SimpleDateFormat("yyyy, MM, dd, HH, mm, ss");
 		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
 
-		String donneesPuissance = "[";
+		String donneesPuissance = "";
 		
 		try {
 			//On considère la date relevée comme étant le bilan de la veille
@@ -268,17 +325,103 @@ public class ConnectionManager {
 			e.printStackTrace();
 		}
 		
-		
-		
-		donneesPuissance = donneesPuissance + "]";
+
 		return donneesPuissance;
 	}
+	
+	
+	public TreeMap<String , String> getDonneesPuissanceRefresh(int nbJour, TreeMap<String , String> donneesPuissance)
+	{
+		SimpleDateFormat simpleDateFormatLecture = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		SimpleDateFormat simpleDateFormatGoogle = new SimpleDateFormat("yyyy, MM, dd, HH, mm, ss");
+		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+		
+		TreeMap<String, String> donneesPuissanceResult = new TreeMap<String, String>();
+		
+		//On recherche les enregistrements de donnes qui ne doivent plus être affichée
+		//On considère la date relevée comme étant le bilan de la veille
+	    Calendar cal = Calendar.getInstance();
+		cal.setTime(new Date());
+		cal.add(Calendar.DATE, nbJour * -1);
+		Date dateDebut = cal.getTime();
+		String dateDonneesPlusRecente = simpleDateFormatLecture.format(dateDebut);
+		
+		if(donneesPuissance == null)
+		{
+			donneesPuissance = new TreeMap<>();
+		}
+		
+		for(String keyDate : donneesPuissance.keySet())
+		{
+			if(keyDate.compareTo(simpleDateFormatLecture.format(dateDebut)) > 0)
+			{
+				donneesPuissanceResult.put(keyDate, donneesPuissance.get(keyDate));
+				if(dateDonneesPlusRecente.compareTo(keyDate) < 0)
+				{
+					dateDonneesPlusRecente = keyDate;
+				}
+			}
+		}
+		
+		// ==> Tableau nettoyé
+		
+		
+		//Récupération des données manquantes
+		try {
+			String query = "SELECT date, hchp, va, iinst, watt FROM TI_Puissance WHERE date > ? ORDER BY date ASC;";
+
+			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
+			preparedStmt.setDate(1, new java.sql.Date(simpleDateFormatLecture.parse(dateDonneesPlusRecente).getTime()));
+			preparedStmt.execute();
+			ResultSet rs = preparedStmt.executeQuery();
+
+			while(rs.next())
+			{
+				Date dateData = rs.getTimestamp("date");
+				long va =  rs.getLong("va");
+				long watt = rs.getLong("watt");
+				
+				String donnesUnitaire = "[{v:new Date("+simpleDateFormatGoogle.format(dateData)+"), f:'"+simpleDateFormatTexteGoogle.format(dateData)+"'}, {v:"+va+", f:'"+va+" V.A'},{v:"+watt+", f:'"+watt+" W'}]";
+				
+				donneesPuissanceResult.put(simpleDateFormatLecture.format(dateData), donnesUnitaire);
+			}
+			rs.close();
+		} 
+		catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+
+		return donneesPuissanceResult;
+	}
+	
+	
+	public String transformerMapDonnees(TreeMap<String, String> donneesMap)
+	{
+		String resultat = null;
+		
+		for(String valeur:donneesMap.values())
+		{
+			if(resultat == null)
+			{
+				resultat = valeur;
+			}
+			else
+			{
+				resultat = resultat + ","+valeur;
+			}
+		}
+		
+		return resultat;
+	}
+	
 	
 	public String getDonneesConsommation(int nbJour)
 	{
 		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateInstance(DateFormat.MEDIUM);
 
-		String donneesConsomation = "[";
+		String donneesConsomation = "";
 		
 		try {
 			//On considère la date relevée comme étant le bilan de la veille
@@ -321,9 +464,7 @@ public class ConnectionManager {
 			e.printStackTrace();
 		}
 		
-		
-		
-		donneesConsomation = donneesConsomation + "]";
+
 		return donneesConsomation;
 	}
 	 
@@ -331,7 +472,7 @@ public class ConnectionManager {
 	{
 		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateInstance(DateFormat.MEDIUM);
 
-		String donneesConsomation = "[";
+		String donneesConsomation = "";
 		
 		try {
 			//On considère la date relevée comme étant le bilan de la veille
@@ -377,9 +518,7 @@ public class ConnectionManager {
 			e.printStackTrace();
 		}
 		
-		
-		
-		donneesConsomation = donneesConsomation + "]";
+
 		return donneesConsomation;
 	}
 	

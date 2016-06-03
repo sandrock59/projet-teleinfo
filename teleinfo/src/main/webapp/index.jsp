@@ -1,3 +1,5 @@
+<%@page import="java.util.TreeMap"%>
+<%@page import="java.text.SimpleDateFormat"%>
 <%@page import="java.util.Date"%>
 <%@page import="java.text.DateFormat"%>
 <%@page import="fr.sandrock59.teleinfo.beans.InfosConso"%>
@@ -6,11 +8,53 @@
 
 		<% 
 		session = request.getSession(true);
-            
+        SimpleDateFormat simpleDAteFormatJour = new SimpleDateFormat("yyyy-MM-dd");
+		
+		
+		//Récupération de la date du jour pour optimiser les requêtes:
+		String dateDonneesSession = (String)session.getAttribute("dateDonneesSession");
+		
+        //Données de consommation en session
+        String donneesConsoGoogleKWh = (String)session.getAttribute("donneesConsoGoogleKWh");
+        String donneesConsoGooglePrix = (String)session.getAttribute("donneesConsoGooglePrix");
+        String donneesPuissanceGoogle = (String)session.getAttribute("donneesPuissanceGoogle");
+        TreeMap<String, String> donneesPuissanceMap = (TreeMap<String, String>)session.getAttribute("donneesPuissanceMap");
+        
+        
 
 		//Récupération des infos de consomation
-		String donneesPuissanceGoogle = ConnectionManager.getInstance().getDonneesPuissance(5);
-		String donneesConsoGoogle = "[]";
+		if(dateDonneesSession == null)
+		{
+			//On a encore rien récupéré on doit tout charger
+			donneesPuissanceMap = ConnectionManager.getInstance().getDonneesPuissanceRefresh(5, donneesPuissanceMap);
+			donneesPuissanceGoogle = ConnectionManager.getInstance().transformerMapDonnees(donneesPuissanceMap);
+			
+			donneesConsoGooglePrix = ConnectionManager.getInstance().getDonneesConsommationPrix(365);
+			donneesConsoGoogleKWh = ConnectionManager.getInstance().getDonneesConsommation(365);
+			dateDonneesSession = simpleDAteFormatJour.format(new Date());
+		}
+		else
+		{
+			//On ne recharge que ce qui est utile:
+			String dateMaintenant = simpleDAteFormatJour.format(new Date());
+			if(dateMaintenant.equals(dateDonneesSession))
+			{
+				//On n'a pas changé de jour, on ne recharge que les données de puissance
+				donneesPuissanceMap = ConnectionManager.getInstance().getDonneesPuissanceRefresh(5, donneesPuissanceMap);
+				donneesPuissanceGoogle = ConnectionManager.getInstance().transformerMapDonnees(donneesPuissanceMap);
+			}
+			else
+			{
+				//On doit recharger les données de puissance et conso
+				donneesPuissanceMap = ConnectionManager.getInstance().getDonneesPuissanceRefresh(5, donneesPuissanceMap);
+				donneesPuissanceGoogle = ConnectionManager.getInstance().transformerMapDonnees(donneesPuissanceMap);
+			
+				donneesConsoGooglePrix = ConnectionManager.getInstance().getDonneesConsommationPrix(365);
+				donneesConsoGoogleKWh = ConnectionManager.getInstance().getDonneesConsommation(365);
+				dateDonneesSession = simpleDAteFormatJour.format(new Date());	
+			}
+		}
+		
 		
 		String optionConso = request.getParameter( "optionConso" );
 		if(optionConso == null)
@@ -24,15 +68,11 @@
 			selectedkWh = "selected";
 			selectedEuros = "";
 			optionConso="kWh";
-			//Affichage des données de conso en kWh
-			donneesConsoGoogle = ConnectionManager.getInstance().getDonneesConsommation(365);
 		}
 		else
 		{
 			selectedkWh = "";
 			selectedEuros = "selected";
-			//Affichage des données de conso en euros
-			donneesConsoGoogle = ConnectionManager.getInstance().getDonneesConsommationPrix(365);
 		}
 		
 		//Option de refresh
@@ -63,7 +103,6 @@
 		{
 			cmdRaffraichir="";
 		}
-	
 		
 		//Date à afficher
 		String dateTitre = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM).format(new Date());
@@ -71,6 +110,13 @@
 		//Stockage en session
 		session.setAttribute("optionConso", optionConso);
 		session.setAttribute("optionRaffraichir", optionRaffraichir);
+		session.setAttribute("dateDonneesSession", dateDonneesSession);
+		session.setAttribute("donneesPuissanceGoogle", donneesPuissanceGoogle);
+		session.setAttribute("donneesConsoGooglePrix", donneesConsoGooglePrix);
+		session.setAttribute("donneesConsoGoogleKWh", donneesConsoGoogleKWh);
+		session.setAttribute("donneesPuissanceMap", donneesPuissanceMap);
+		
+		
 		%>
 		
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
@@ -108,164 +154,8 @@
 	
 		
 	
-		<div id="puissance">
-  			<div id="chart_div"></div>
-  			<div id="filter_div"></div>
-		</div>
-		
-		
-		<div id="conso"></div>
-		<div id="consoPrix"></div>
-
-
-	<script type="text/javascript">
-		google.load('visualization', '1.0', {
-			'packages' : [ 'controls' ]
-		});
-		google.setOnLoadCallback(drawDashboard);
-
-		function drawDashboard() {
-
-			var data = new google.visualization.DataTable();
-			data.addColumn('date', 'Date');
-			data.addColumn('number', 'V.A');
-			data.addColumn('number', 'kW');
-			data.addRows(<%=donneesPuissanceGoogle%>);
-
-			var dashboard = new google.visualization.Dashboard(document
-					.getElementById('puissance'));
-
-			var rangeSlider = new google.visualization.ControlWrapper({
-				'controlType' : 'ChartRangeFilter',
-				'containerId' : 'filter_div',
-				'options' : {
-					filterColumnLabel : 'Date',
-					ui : {
-						chartType : 'LineChart',
-						chartOptions : {
-							height : 80,
-							backgroundColor : '#FFF',
-							colors : [ '#375D81', '#ABC8E2' ],
-							curveType : 'function',
-							focusTarget : 'category',
-							lineWidth : '1',
-							'legend' : {
-								'position' : 'none'
-							},
-							'hAxis' : {
-								'textPosition' : 'in'
-							},
-							'vAxis' : {
-								'textPosition' : 'none',
-								'gridlines' : {
-									'color' : 'none'
-								}
-							}
-						}
-					}
-				}
-			});
-
-			var lineChart = new google.visualization.ChartWrapper({
-				'chartType' : 'LineChart',
-				'containerId' : 'chart_div',
-				'options' : {
-					title : '',
-					height : 400,
-					backgroundColor : '#FFF',
-					colors : [ '#375D81', '#ABC8E2' ],
-					curveType : 'function',
-					focusTarget : 'category',
-					lineWidth : '1',
-					legend : {
-						position : 'bottom',
-						alignment : 'center',
-						textStyle : {
-							color : '#333',
-							fontSize : 16
-						}
-					},
-					vAxis : {
-						textStyle : {
-							color : '#555',
-							fontSize : '16'
-						},
-						gridlines : {
-							color : '#CCC',
-							count : 'auto'
-						},
-						baselineColor : '#AAA',
-						minValue : 0
-					},
-					hAxis : {
-						textStyle : {
-							color : '#555'
-						},
-						gridlines : {
-							color : '#DDD'
-						}
-					}
-				}
-			});
-
-			dashboard.bind(rangeSlider, lineChart);
-			dashboard.draw(data);
-		}
-		google.load("visualization", "1", {
-			packages : [ "corechart" ]
-		});
-		google.setOnLoadCallback(drawChart);
-
-		function drawChart() {
-			var data = new google.visualization.DataTable();
-			data.addColumn('string', 'Date');
-			data.addColumn('number', 'Heures pleines');
-			data.addColumn('number', 'Heures creuses');
-			data.addRows(<%=donneesConsoGoogle%>);
-			var options = {
-				title : '',
-				height : 200,
-				backgroundColor : '#FFF',
-				colors : [ '#375D81', '#ABC8E2' ],
-				curveType : 'function',
-				focusTarget : 'category',
-				lineWidth : '1',
-				isStacked : true,
-				legend : {
-					position : 'bottom',
-					alignment : 'center',
-					textStyle : {
-						color : '#333',
-						fontSize : 16
-					}
-				},
-				vAxis : {
-					textStyle : {
-						color : '#555',
-						fontSize : '16'
-					},
-					gridlines : {
-						color : '#CCC',
-						count : 'auto'
-					},
-					baselineColor : '#AAA',
-					minValue : 0
-				},
-				hAxis : {
-					textStyle : {
-						color : '#555'
-					},
-					gridlines : {
-						color : '#DDD'
-					}
-				}
-			};
-			var chart = new google.visualization.ColumnChart(document
-					.getElementById("conso"));
-			chart.draw(data, options);
-		}
-	</script>
-
-
-</body>
+		<jsp:include page="graphPuissance.jsp" />
+		<jsp:include page="graphConso.jsp" />
+	
+	</body>
 </html>
