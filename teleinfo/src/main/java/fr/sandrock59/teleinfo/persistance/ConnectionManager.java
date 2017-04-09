@@ -330,51 +330,97 @@ public class ConnectionManager {
 	}
 	
 	
-	public TreeMap<String , String> getDonneesPuissanceRefresh(int nbJour, TreeMap<String , String> donneesPuissance)
+	public TreeMap<String , String> getDonneesPuissanceRefresh(int nbJour, TreeMap<String , String> donneesPuissance, String dateDemande)
 	{
 		SimpleDateFormat simpleDateFormatLecture = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		SimpleDateFormat simpleDateFormatGoogle = new SimpleDateFormat("yyyy, MM, dd, HH, mm, ss");
 		DateFormat simpleDateFormatTexteGoogle = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT);
+		SimpleDateFormat simpleDateFormatDemande = new SimpleDateFormat("dd-MM-yyyy");
+		
+		
+		Date dateFin = null;
+		if(dateDemande != null && dateDemande.equals(simpleDateFormatDemande.format(new Date())))
+		{
+			System.out.println("date now");
+			dateFin=new Date();
+		}
+		else
+		{
+			try {
+				if(dateDemande != null)
+				{
+					dateFin =  simpleDateFormatDemande.parse(dateDemande);
+					Calendar cal = Calendar.getInstance();
+					cal.setTime(dateFin);
+					cal.setTime(dateFin);
+					cal.add(Calendar.DATE, 1);
+					dateFin = cal.getTime();
+					
+				}
+				else
+				{
+					dateFin = new Date();
+				}
+				
+			} catch (ParseException e1) {
+				dateFin = new Date();
+			}
+			
+		}
+		
+		
+		
+		
 		
 		TreeMap<String, String> donneesPuissanceResult = new TreeMap<String, String>();
 		
 		//On recherche les enregistrements de donnes qui ne doivent plus être affichée
 		//On considère la date relevée comme étant le bilan de la veille
 	    Calendar cal = Calendar.getInstance();
-		cal.setTime(new Date());
+		cal.setTime(dateFin);
 		cal.add(Calendar.DATE, nbJour * -1);
 		Date dateDebut = cal.getTime();
+		
+		
 		String dateDonneesPlusRecente = simpleDateFormatLecture.format(dateDebut);
 		
-		if(donneesPuissance == null)
-		{
-			donneesPuissance = new TreeMap<>();
-		}
 		
-		for(String keyDate : donneesPuissance.keySet())
-		{
-			if(keyDate.compareTo(simpleDateFormatLecture.format(dateDebut)) > 0)
-			{
-				donneesPuissanceResult.put(keyDate, donneesPuissance.get(keyDate));
-				if(dateDonneesPlusRecente.compareTo(keyDate) < 0)
-				{
-					dateDonneesPlusRecente = keyDate;
-				}
-			}
-		}
+		System.out.println("date fin:"+String.valueOf(simpleDateFormatLecture.format(dateFin)));
+		System.out.println("date debut:"+String.valueOf(simpleDateFormatLecture.format(dateDebut)));
+		
+//		if(donneesPuissance == null)
+//		{
+//			donneesPuissance = new TreeMap<>();
+//		}
+//		
+//		for(String keyDate : donneesPuissance.keySet())
+//		{
+//			//On ne conserve que les dates dans la période demandée
+//			if(keyDate.compareTo(simpleDateFormatLecture.format(dateDebut)) > 0 && keyDate.compareTo(simpleDateFormatLecture.format(dateFin)) < 0) 
+//			{
+//				donneesPuissanceResult.put(keyDate, donneesPuissance.get(keyDate));
+//				if(dateDonneesPlusRecente.compareTo(keyDate) < 0)
+//				{
+//					dateDonneesPlusRecente = keyDate;
+//				}
+//			}
+//		}
 		
 		// ==> Tableau nettoyé
 		
 		
 		//Récupération des données manquantes
 		try {
-			String query = "SELECT date, hchp, va, iinst, watt FROM TI_Puissance WHERE date > ? ORDER BY date ASC;";
+			String query = "SELECT date, hchp, va, iinst, watt FROM TI_Puissance WHERE date > ?  AND date < ? ORDER BY date ASC;";
 
 			PreparedStatement preparedStmt = (PreparedStatement) conn.prepareStatement(query);
-			preparedStmt.setDate(1, new java.sql.Date(simpleDateFormatLecture.parse(dateDonneesPlusRecente).getTime()));
+			preparedStmt.setString(1, dateDonneesPlusRecente);
+			preparedStmt.setString(2, simpleDateFormatLecture.format(dateFin));
 			preparedStmt.execute();
 			ResultSet rs = preparedStmt.executeQuery();
 
+			System.out.println("date debut:"+String.valueOf(new java.sql.Date(dateFin.getTime())));
+			
 			while(rs.next())
 			{
 				Date dateData = rs.getTimestamp("date");
